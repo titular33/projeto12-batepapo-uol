@@ -192,7 +192,61 @@ app.delete("/messages/:messageId", async (req, res) => {
         res.sendStatus(500);
     }
 });
+//fase de teste put.
+app.put("/messages/:messageId", async (req, res) => {
+    const { messageId } = req.params;
+    const { user } = req.headers;
 
+    const editedMessage = {
+        ...req.body,
+        from: user,
+    };
+
+    try {
+        await newMessageSchema.validateAsync(editedMessage, {
+            abortEarly: false,
+        });
+    } catch (error) {
+        res.status(422).send(error.details.map((err) => err.message));
+        return;
+    }
+
+    try {
+        const foundMessage = await db
+            .collection("messages")
+            .findOne({ _id: new ObjectId(messageId) });
+
+        if (!foundMessage) {
+            res.sendStatus(404);
+            return;
+        } else if (foundMessage.from !== user) {
+            res.sendStatus(401);
+            return;
+        }
+
+        try {
+            const updateConfirmation = await db
+                .collection("messages")
+                .updateOne(
+                    { _id: foundMessage._id },
+                    { $set: { ...editedMessage } }
+                );
+            if (updateConfirmation.modifiedCount > 0) {
+                res.sendStatus(202);
+                return;
+            } else {
+                res.sendStatus(404);
+                return;
+            }
+        } catch (error) {
+            res.sendStatus(404);
+            return;
+        }
+    } catch (error) {
+        res.sendStatus(404);
+        return;
+    }
+});
 app.post("/status", async (req, res) => {
     const { user } = req.headers;
 
