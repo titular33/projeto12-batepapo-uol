@@ -16,9 +16,9 @@
     "author": "",
     "license": "ISC",
     "bugs": {
-        "url": "https://github.com/lemoscaio/projeto12-batepapo-uol-api/issues"
+        "url": "https://github.com/titular33/projeto12-batepapo-uol-api/issues"
     },
-    "homepage": "https://github.com/lemoscaio/projeto12-batepapo-uol-api#readme",
+    "homepage": "https://github.com/titular33/projeto12-batepapo-uol-api#readme",
     "dependencies": {
         "cors": "^2.8.5",
         "dayjs": "^1.11.1",
