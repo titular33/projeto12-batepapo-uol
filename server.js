@@ -10,19 +10,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// CONNECTING MONGODB
+// MONGODB!
 const mongoClient = new MongoClient(process.env.MONGO_URI);
 let db;
 mongoClient.connect().then(() => {
     db = mongoClient.db(process.env.DATABASE);
 });
 
-// SCHEMAS
+
 const newParticipantSchema = Joi.object({
     name: Joi.string().required(),
 });
 
-// TODO changes "from" to validate if user is in users list
+
 const newMessageSchema = Joi.object({
     from: Joi.string().required(),
     to: Joi.string().required(),
@@ -31,12 +31,11 @@ const newMessageSchema = Joi.object({
     time: Joi.any(),
 });
 
-// STARTING SERVER
 app.listen(process.env.PORT, () => {
     console.log("Server running on port", process.env.PORT);
 });
 
-// PARTICIPANTS ROUTE
+
 app.get("/participants", async (req, res) => {
     try {
         const users = await db.collection("users").find().toArray();
@@ -90,7 +89,6 @@ app.post("/participants", async (req, res) => {
         res.sendStatus(500);
     }
 });
-// MESSAGES ROUTE
 
 app.get("/messages", async (req, res) => {
     const limit = parseInt(req.query.limit);
@@ -151,3 +149,52 @@ app.post("/messages", async (req, res) => {
         res.sendStatus(500);
     }
 });
+
+app.post("/status", async (req, res) => {
+    const { user } = req.headers;
+
+    const foundUser = await db.collection("users").findOne({ name: user });
+    console.log(foundUser);
+
+    if (!foundUser) {
+        res.sendStatus(404);
+        return;
+    }
+
+    await db.collection("users").updateOne(
+        {
+            name: user,
+        },
+        { $set: { lastStatus: Date.now() } }
+    );
+
+    res.send(200);
+});
+
+(function checkActiveUsers() {
+    setInterval(async () => {
+        const users = await db
+            .collection("users")
+            .find()
+            .forEach(async (user) => {
+                if (Date.now() - user.lastStatus >= 10000) {
+                    const deletedUser = await db
+                        .collection("users")
+                        .deleteOne({ name: user.name });
+                    if (deletedUser.deletedCount === 1) {
+                        const deletedMessage = {
+                            from: user.name,
+                            to: "Todos",
+                            text: "sai da sala...",
+                            type: "status",
+                            time: dayjs().format("HH:mm:ss"),
+                        };
+
+                        await db
+                            .collection("messages")
+                            .insertOne({ ...deletedMessage });
+                    } else console.log("Não consegui deletar o usuário");
+                }
+            });
+    }, 15000);
+})();
