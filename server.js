@@ -81,34 +81,54 @@ app.post("/participants", async (req, res) => {
             lastStatus: Date.now(),
         });
 
+        await db.collection("messages").insertOne({
+            ...registerUserMessage,
+        });
+
         res.sendStatus(201);
     } catch (error) {
         res.sendStatus(500);
     }
 });
-
 // MESSAGES ROUTE
 
 app.get("/messages", async (req, res) => {
     const limit = parseInt(req.query.limit);
+    const { user } = req.headers;
+
+    let messages = [];
 
     try {
         if (limit) {
-            const messages = await db
+            messages = await db
                 .collection("messages")
                 .find({}, { limit, sort: { time: -1 } })
                 .toArray();
-            res.send([...messages].reverse());
+        } else {
+            messages = await db.collection("messages").find().toArray();
+        }
+
+        const filteredMessages = messages.filter((message) => {
+            if (
+                message.type === "private_message" &&
+                (message.to === user || message.from === user)
+            )
+                return true;
+            else if (message.type === "private_message") return false;
+            else return true;
+        });
+
+        if (limit) {
+            res.send([...filteredMessages].reverse());
+            return;
+        } else {
+            res.send(filteredMessages);
             return;
         }
-        const messages = await db.collection("messages").find().toArray();
-        res.send(messages);
-        return;
     } catch (error) {
         res.sendStatus(500);
     }
 });
-
 app.post("/messages", async (req, res) => {
     const { user } = req.headers;
     const newMessage = {
@@ -116,7 +136,6 @@ app.post("/messages", async (req, res) => {
         from: user,
         time: dayjs().format("HH:mm:ss"),
     };
-
     try {
         await newMessageSchema.validateAsync(newMessage, {
             abortEarly: false,
@@ -125,7 +144,6 @@ app.post("/messages", async (req, res) => {
         res.status(422).send(error.details.map((err) => err.message));
         return;
     }
-
     try {
         await db.collection("messages").insertOne({ ...newMessage });
         res.sendStatus(201);
