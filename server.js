@@ -129,11 +129,18 @@ app.get("/messages", async (req, res) => {
 });
 app.post("/messages", async (req, res) => {
     const { user } = req.headers;
+    const userExists = await db.collection("users").findOne({ name: user });
+
+    if (!userExists) {
+        res.sendStatus(422);
+        return;
+    }
     const newMessage = {
         ...req.body,
         from: user,
         time: dayjs().format("HH:mm:ss"),
     };
+
     try {
         await newMessageSchema.validateAsync(newMessage, {
             abortEarly: false,
@@ -154,7 +161,6 @@ app.post("/status", async (req, res) => {
     const { user } = req.headers;
 
     const foundUser = await db.collection("users").findOne({ name: user });
-    console.log(foundUser);
 
     if (!foundUser) {
         res.sendStatus(404);
